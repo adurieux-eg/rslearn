@@ -65,7 +65,7 @@ rslearn dataset add_windows \
   --utm \
   --resolution $RESOLUTION \
   --src_crs EPSG:4326 \
-  --src_file $AOI_FILE \
+  --fname $AOI_FILE \
   --start $TIME_RANGE_START \
   --end $TIME_RANGE_END \
   --grid_size 1024
