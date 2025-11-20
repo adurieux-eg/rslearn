@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "jamaica_south_small",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": null }, "geometry": { "type": "MultiPolygon", "coordinates": [ [ [ [ -77.481904126354664, 17.879761202487245 ], [ -77.481097255563412, 17.718387044237936 ], [ -77.226126085529501, 17.712738948699212 ], [ -77.237422276606964, 17.871692494574777 ], [ -77.481904126354664, 17.879761202487245 ] ] ] ] } }
+]
+}
