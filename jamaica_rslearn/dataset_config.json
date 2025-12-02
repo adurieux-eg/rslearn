@@ -11,13 +11,12 @@
         "ingest": false,
         "name": "rslearn.data_sources.planetary_computer.Sentinel2",
         "query_config": {
-          "max_matches": 24,
-          "period_duration": "365d",
-          "space_mode": "COMPOSITE"
+          "max_matches": 6,
+          "period_duration": "30d",
+          "space_mode": "PER_PERIOD_MOSAIC"
         },
         "sort_by": "eo:cloud_cover"
       },
-      "compositing_method": "MEDIAN",
       "type": "raster"
     },
     "sentinel1": {
@@ -35,11 +34,10 @@
           "sar:polarizations": {"eq": ["VV", "VH"]}
         },
         "query_config": {
-          "max_matches": 24,
-          "period_duration": "365d",
-          "space_mode": "COMPOSITE"
-        },
-        "compositing_method": "MEDIAN"
+          "max_matches": 6,
+          "period_duration": "30d",
+          "space_mode": "PER_PERIOD_MOSAIC"
+        }
       },
       "type": "raster"
     },
@@ -52,4 +50,3 @@
     }
   }
 }
-

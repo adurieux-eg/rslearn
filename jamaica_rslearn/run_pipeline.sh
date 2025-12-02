@@ -1,15 +1,15 @@
 #!/bin/bash
-# Jamaica South Small - OlmoEarth Embeddings Pipeline
+# Jamaica South Small - OlmoEarth Embeddings Pipeline (Multi-Temporal)
 # Area: ~59 km²
-# Time range: Nov 2024 - Nov 2025
-# Modalities: Sentinel-2 (MEDIAN composite) + Sentinel-1 (MEDIAN composite)
+# Time range: Dec 2024 - May 2025 (6 months, dry season)
+# Approach: 6 monthly mosaics fed to OlmoEarth (model handles clouds internally)
 
 set -e
 
 # Configuration
 export DATASET_PATH=./jamaica_south_small_dataset
-TIME_RANGE_START="2024-11-01T00:00:00+00:00"
-TIME_RANGE_END="2025-11-01T00:00:00+00:00"
+TIME_RANGE_START="2024-12-01T00:00:00+00:00"
+TIME_RANGE_END="2025-05-31T00:00:00+00:00"
 RESOLUTION=10
 AOI_FILE="./jamaica_south_small.geojson"
 
@@ -17,9 +17,12 @@ echo "========================================="
 echo "Jamaica South Small - OlmoEarth Pipeline"
 echo "========================================="
 echo "AOI: jamaica_south_small.geojson (~59 km²)"
-echo "Time range: Nov 2024 - Nov 2025"
-echo "S2 composite: MEDIAN (24 images)"
-echo "S1 composite: MEDIAN (24 images)"
+echo "Time range: Dec 2024 - May 2025 (dry season)"
+echo ""
+echo "MULTI-TEMPORAL APPROACH (OlmoEarth recommended):"
+echo "  - 6 monthly mosaics (one per month)"
+echo "  - Model sees all timesteps, handles clouds internally"
+echo "  - No median compositing - preserves temporal signal"
 echo "========================================="
 echo ""
 
@@ -76,6 +79,7 @@ echo ""
 
 # Step 3: Prepare data (query STAC catalogs)
 echo "Step 3: Querying Planetary Computer for imagery..."
+echo "   Looking for 6 monthly mosaics per sensor..."
 echo "   (This may take a few minutes...)"
 rslearn dataset prepare \
   --root $DATASET_PATH \
@@ -87,10 +91,10 @@ echo "✅ Data preparation complete"
 echo ""
 
 # Step 4: Materialize satellite imagery
-echo "Step 4: Downloading and compositing imagery..."
-echo "   S2: Creating MEDIAN composite from up to 24 images"
-echo "   S1: Creating MEDIAN composite from up to 24 images"
-echo "   (This may take 10-20 minutes...)"
+echo "Step 4: Downloading monthly mosaics..."
+echo "   S2: Up to 6 monthly mosaics (Dec-May)"
+echo "   S1: Up to 6 monthly mosaics (Dec-May)"
+echo "   (This may take 15-30 minutes...)"
 
 rslearn dataset materialize \
   --root $DATASET_PATH \
@@ -99,15 +103,18 @@ rslearn dataset materialize \
   --retry-max-attempts 5 \
   --retry-backoff-seconds 5
 
+# Count materialized layers (should be multiple per window now)
 NUM_S2=$(find $DATASET_PATH/windows/default/*/layers/sentinel2_l2a -name 'geotiff.tif' 2>/dev/null | wc -l)
 NUM_S1=$(find $DATASET_PATH/windows/default/*/layers/sentinel1 -name 'geotiff.tif' 2>/dev/null | wc -l)
-echo "✅ Materialized S2 for $NUM_S2 windows, S1 for $NUM_S1 windows"
+echo "✅ Materialized $NUM_S2 S2 mosaics, $NUM_S1 S1 mosaics"
 echo ""
 
 # Step 5: Compute OlmoEarth embeddings
 echo "Step 5: Computing OlmoEarth embeddings..."
 echo "   Model: OlmoEarth-v1-Base (768 channels)"
 echo "   Patch size: 4 (40m spatial resolution)"
+echo "   Input: 6 timesteps per modality"
+echo "   Cloud handling: Model pools across time, ignores cloudy observations"
 echo "   (This will take 2-4 hours...)"
 echo ""
 
@@ -143,4 +150,3 @@ echo ""
 echo "To view in QGIS:"
 echo "  qgis $DATASET_PATH/windows/default/*/layers/embeddings/*/geotiff.tif"
 echo ""
-
