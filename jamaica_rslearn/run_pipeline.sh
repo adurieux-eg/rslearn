@@ -1,8 +1,8 @@
 #!/bin/bash
-# Jamaica South Small - OlmoEarth Embeddings Pipeline (Multi-Temporal)
+# Jamaica South Small - OlmoEarth Embeddings Pipeline (Multi-Temporal, S2 only)
 # Area: ~59 km²
 # Time range: Dec 2024 - May 2025 (6 months, dry season)
-# Approach: 6 monthly mosaics fed to OlmoEarth (model handles clouds internally)
+# Approach: 6 monthly S2 mosaics fed to OlmoEarth (model handles clouds internally)
 
 set -e
 
@@ -20,6 +20,7 @@ echo "AOI: jamaica_south_small.geojson (~59 km²)"
 echo "Time range: Dec 2024 - May 2025 (dry season)"
 echo ""
 echo "MULTI-TEMPORAL APPROACH (OlmoEarth recommended):"
+echo "  - Sentinel-2 only (12 bands)"
 echo "  - 6 monthly mosaics (one per month)"
 echo "  - Model sees all timesteps, handles clouds internally"
 echo "  - No median compositing - preserves temporal signal"
@@ -93,8 +94,7 @@ echo ""
 # Step 4: Materialize satellite imagery
 echo "Step 4: Downloading monthly mosaics..."
 echo "   S2: Up to 6 monthly mosaics (Dec-May)"
-echo "   S1: Up to 6 monthly mosaics (Dec-May)"
-echo "   (This may take 15-30 minutes...)"
+echo "   (This may take 10-20 minutes...)"
 
 rslearn dataset materialize \
   --root $DATASET_PATH \
@@ -105,8 +105,7 @@ rslearn dataset materialize \
 
 # Count materialized layers (should be multiple per window now)
 NUM_S2=$(find $DATASET_PATH/windows/default/*/layers/sentinel2_l2a -name 'geotiff.tif' 2>/dev/null | wc -l)
-NUM_S1=$(find $DATASET_PATH/windows/default/*/layers/sentinel1 -name 'geotiff.tif' 2>/dev/null | wc -l)
-echo "✅ Materialized $NUM_S2 S2 mosaics, $NUM_S1 S1 mosaics"
+echo "✅ Materialized $NUM_S2 S2 mosaics"
 echo ""
 
 # Step 5: Compute OlmoEarth embeddings

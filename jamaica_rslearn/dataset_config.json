@@ -19,28 +19,6 @@
       },
       "type": "raster"
     },
-    "sentinel1": {
-      "band_sets": [{
-          "bands": ["vv", "vh"],
-          "dtype": "float32",
-          "nodata_vals": [-32768, -32768]
-      }],
-      "data_source": {
-        "cache_dir": "cache/planetary_computer",
-        "ingest": false,
-        "name": "rslearn.data_sources.planetary_computer.Sentinel1",
-        "query": {
-          "sar:instrument_mode": {"eq": "IW"},
-          "sar:polarizations": {"eq": ["VV", "VH"]}
-        },
-        "query_config": {
-          "max_matches": 6,
-          "period_duration": "30d",
-          "space_mode": "PER_PERIOD_MOSAIC"
-        }
-      },
-      "type": "raster"
-    },
     "embeddings": {
       "band_sets": [{
           "dtype": "float32",
