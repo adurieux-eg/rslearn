@@ -21,13 +21,12 @@ data:
     inputs:
       sentinel2_l2a:
         data_type: "raster"
-        layers: ["sentinel2_l2a"]
+        # Load all 6 monthly mosaics (sentinel2_l2a, sentinel2_l2a.1, ..., sentinel2_l2a.5)
+        layers: ["sentinel2_l2a", "sentinel2_l2a.1", "sentinel2_l2a.2", "sentinel2_l2a.3", "sentinel2_l2a.4", "sentinel2_l2a.5"]
         bands: ["B02", "B03", "B04", "B08", "B05", "B06", "B07", "B8A", "B11", "B12", "B01", "B09"]
         passthrough: true
         dtype: FLOAT32
         load_all_layers: true
-        # Load all 6 monthly timesteps
-        load_all_times: true
     task:
       class_path: rslearn.train.tasks.embedding.EmbeddingTask
     batch_size: 4
