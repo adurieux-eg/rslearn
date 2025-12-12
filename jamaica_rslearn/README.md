@@ -1,191 +1,185 @@
-# Jamaica South Small - OlmoEarth Embeddings (Multi-Temporal)
+# Jamaica Full Coastline - OlmoEarth Embeddings
 
-## Approach
+## Overview
 
-This pipeline uses the **OlmoEarth-recommended multi-temporal approach**:
+Pipeline to generate OlmoEarth embeddings for the entire Jamaica seagrass AOI (~3,628 km²).
 
-> "Clouds -- we recommend inputting 6-12 monthly images. If a subset of images are cloudy at a particular spot, the model will still be able to make use of the other images."
-
-Instead of creating a single median composite, we:
-1. Create **6 monthly mosaics** (one per month, Dec-May)
-2. Feed **all 6 timesteps** to OlmoEarth
-3. The model **internally pools across time**, learning to ignore cloudy observations
-
-This preserves temporal information and lets the model handle clouds intelligently.
+**Key Features:**
+- Multi-temporal approach (6 monthly mosaics)
+- Automatic upload to GCS after each batch
+- Local cleanup to manage disk space
+- Handles ~500-600 windows over 2-3 days
 
 ---
 
 ## Quick Start
 
-### 1. On VM: Pull the latest changes
+### 1. Copy AOI file to VM
+
+After pushing to git, copy the new AOI file to your VM:
 
 ```bash
-# On local machine: commit and push
-cd /Users/alicedurieux/Documents/GitHub/rslearn
-git add jamaica_rslearn/
-git commit -m "Switch to multi-temporal approach"
-git push origin jamaica
-
-# On VM: pull the changes
-cd ~/rslearn
-git pull origin jamaica
+# From your LOCAL machine:
+gcloud compute scp \
+  ~/Documents/GitHub/seagrass-mapping-pm/alice_notebooks/olmo/jamaica_embeddings/jamaica_seagrass_aoi.geojson \
+  alice-big:~/rslearn/jamaica_rslearn/ \
+  --zone=us-central1-a
 ```
 
-### 2. Navigate to the directory and activate venv
+Or, if you've pushed to git:
 
 ```bash
+# On the VM:
 cd ~/rslearn/jamaica_rslearn
+
+# Download from seagrass-mapping repo
+curl -L -o jamaica_seagrass_aoi.geojson \
+  "https://raw.githubusercontent.com/earth-genome/seagrass-mapping/alice-olmo/alice_notebooks/olmo/jamaica_embeddings/jamaica_seagrass_aoi.geojson"
+```
+
+### 2. On VM: Pull latest rslearn changes
+
+```bash
+cd ~/rslearn
+git pull origin jamaica
+
+cd jamaica_rslearn
 source ~/rslearn/venv/bin/activate
 ```
 
-### 3. Run the pipeline
+### 3. Authenticate GCS (if needed)
 
 ```bash
+gcloud auth login
+```
+
+### 4. Run in a screen session
+
+```bash
+screen -S jamaica_full
+
 chmod +x run_pipeline.sh
 ./run_pipeline.sh
+
+# Detach: Ctrl+A then D
+# Reconnect: screen -r jamaica_full
 ```
 
 ---
 
-## Configuration Details
+## Configuration
 
-**Area:** ~59 km² (jamaica_south_small.geojson)  
-**Time Range:** December 1, 2024 - May 31, 2025 (dry season)  
-**Resolution:** 10m/pixel  
-
-**Sentinel-2:**
-- 12 bands (B01-B12)
-- **6 monthly mosaics** (one per 30-day period)
-- Sorted by cloud cover within each month
-- Harmonized across processing baselines
-
-**Sentinel-1:**
-- 2 bands (VV, VH)
-- **6 monthly mosaics** (one per 30-day period)
-- IW (Interferometric Wide) mode
-
-**OlmoEarth Model:**
-- Version: v1-Base
-- Embedding size: 768 channels
-- Patch size: 4 (40m tokens)
-- **Multi-temporal input:** 6 timesteps
-- **Temporal pooling:** Model averages across time internally
+| Parameter | Value |
+|-----------|-------|
+| **AOI** | `jamaica_seagrass_aoi.geojson` (~3,628 km²) |
+| **Time Range** | Dec 2024 - May 2025 (6 months) |
+| **Resolution** | 10m/pixel |
+| **Windows** | ~500-600 (1024×1024 pixels each) |
+| **GCS Destination** | `gs://chris-seagrass/olmo-earth-jamaica-embeddings` |
 
 ---
 
-## Why Multi-Temporal?
+## Pipeline Steps
 
-| Approach | Pros | Cons |
-|----------|------|------|
-| **Median Composite** | Simple, removes clouds | Loses temporal info, can blur features |
-| **Multi-Temporal (this)** | Model learns cloud handling, preserves phenology | Slightly more data to download |
-
-The OlmoEarth model was trained on multi-temporal data and has learned to:
-- Recognize cloudy observations
-- Down-weight unreliable pixels
-- Combine information across time intelligently
+1. **Add windows** - Tiles the AOI into 1024×1024 windows
+2. **Prepare** - Queries Planetary Computer for Sentinel-2 imagery
+3. **Materialize** - Downloads 6 monthly mosaics per window
+4. **Predict** - Runs OlmoEarth model to generate embeddings
+5. **Upload** - Copies embeddings to GCS
+6. **Cleanup** - Deletes local embeddings to save disk space
 
 ---
 
-## Expected Runtime
+## Estimated Runtime & Cost
 
-- Data query: 2-5 min
-- Download 6 monthly mosaics: 15-30 min
-- Embedding generation: 2-4 hours
-- **Total: ~2.5-5 hours**
+| Stage | Time | Notes |
+|-------|------|-------|
+| Add windows | 5 min | Creates ~500-600 tiles |
+| Prepare | 30 min | Query STAC catalog |
+| Materialize | 2-4 hours | Download S2 data |
+| Predict | 2-3 days | GPU inference |
+| Upload | 30 min | To GCS |
+
+**Costs:**
+- Compute: ~72 hrs × $0.35/hr = **~$25**
+- Storage (GCS): ~150 GB × $0.02/GB = **~$3/month**
 
 ---
 
-## Expected Costs
+## Output
 
-- Compute: 3-4 hrs × $0.75/hr = **$2.25-$3.00**
-- Storage: ~150 GB × $0.04/GB/month = **$6/month**
-- **Total: ~$8-9** first month
-
----
-
-## Output Structure
+Embeddings are uploaded to GCS with this structure:
 
 ```
-jamaica_south_small_dataset/
-└── windows/
-    └── default/
-        └── default_*/
-            └── layers/
-                ├── sentinel2_l2a/
-                │   ├── 0/geotiff.tif  (Dec mosaic)
-                │   ├── 1/geotiff.tif  (Jan mosaic)
-                │   ├── 2/geotiff.tif  (Feb mosaic)
-                │   ├── 3/geotiff.tif  (Mar mosaic)
-                │   ├── 4/geotiff.tif  (Apr mosaic)
-                │   └── 5/geotiff.tif  (May mosaic)
-                ├── sentinel1/
-                │   └── (same structure)
-                └── embeddings/
-                    └── geotiff.tif  ← YOUR EMBEDDINGS (single output)
+gs://chris-seagrass/olmo-earth-jamaica-embeddings/
+├── default_23552_-196608/
+│   └── geotiff.tif  (768 bands, float32)
+├── default_23552_-197632/
+│   └── geotiff.tif
+├── default_24576_-196608/
+│   └── geotiff.tif
+└── ... (~500-600 windows)
 ```
 
-Each embedding GeoTIFF:
-- **768 bands** (float32)
-- **Same spatial extent as input**
-- **1/4 spatial resolution** (40m pixels from 10m input)
-- **Single timestep** (model pools across the 6 input months)
+Each GeoTIFF:
+- **768 bands** (embedding dimensions)
+- **256×256 pixels** (40m resolution)
+- **Georeferenced** (UTM projection)
 
 ---
 
-## Download Results
-
-From your local machine:
-```bash
-gcloud compute scp --recurse \
-  alice-big:~/rslearn/jamaica_rslearn/jamaica_south_small_dataset/windows/default/*/layers/embeddings \
-  ./ --zone=us-central1-a
-```
-
----
-
-## Running in a Screen Session (Recommended)
-
-To avoid disconnection issues:
+## Access Results
 
 ```bash
-# Start screen session
-screen -S jamaica_embeddings
+# List all embeddings
+gsutil ls gs://chris-seagrass/olmo-earth-jamaica-embeddings/
 
-# Run pipeline
-./run_pipeline.sh
+# Download all to local
+gsutil -m cp -r gs://chris-seagrass/olmo-earth-jamaica-embeddings/ ./jamaica_embeddings/
 
-# Detach: Press Ctrl+A then D
-# Reconnect later: screen -r jamaica_embeddings
+# Download single window
+gsutil cp gs://chris-seagrass/olmo-earth-jamaica-embeddings/default_23552_-196608/geotiff.tif ./
+```
+
+---
+
+## Monitoring Progress
+
+```bash
+# Reconnect to screen
+screen -r jamaica_full
+
+# Check GPU usage (in another terminal)
+nvidia-smi
+
+# Check uploaded files
+gsutil ls gs://chris-seagrass/olmo-earth-jamaica-embeddings/ | wc -l
 ```
 
 ---
 
 ## Troubleshooting
 
-**"No valid pixels" / Empty images:**
-- Check AOI is over water (not land)
-- Some months may have no cloud-free imagery - this is OK, model handles it
+**Pipeline stops overnight:**
+- Use `screen` session (see Quick Start)
+- If disconnected: `screen -r jamaica_full`
 
-**Out of memory:**
-- Reduce batch_size in model_config.yaml (4 → 2)
-- Reduce patch_size (64 → 32)
+**GCS permission denied:**
+- Run `gcloud auth login` on VM
 
 **Disk full:**
-- Increase disk size to 250 GB
-- Multi-temporal needs more space than composite approach
+- Pipeline auto-cleans after upload
+- If still full: `rm -rf $DATASET_PATH/windows/default/*/layers/sentinel2_l2a`
 
-**Missing timesteps:**
-- Some months may not have imagery - model will use available timesteps
-- Check `rslearn dataset prepare` output for warnings
+**GPU out of memory:**
+- Edit `model_config.yaml`: reduce `batch_size` to 2
 
 ---
 
 ## Next Steps
 
-After embeddings are generated:
-1. Download to local machine
-2. Visualize in QGIS (first 3 bands as RGB)
-3. Extract features at training point locations
-4. Train seagrass classifier
-5. Apply to full Jamaica coast!
+After pipeline completes:
+1. Download embeddings from GCS
+2. Intersect with training points
+3. Train seagrass classifier
+4. Generate full Jamaica seagrass map
