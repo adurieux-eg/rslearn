@@ -7,8 +7,8 @@ set -e
 
 # Configuration
 MAIN_DATASET_PATH=./jamaica_full_dataset
-TIME_RANGE_START="2024-12-01T00:00:00+00:00"
-TIME_RANGE_END="2025-05-31T00:00:00+00:00"
+TIME_RANGE_START="2025-01-01T00:00:00+00:00"
+TIME_RANGE_END="2025-03-31T00:00:00+00:00"
 RESOLUTION=10
 AOI_FILE="./jamaica_seagrass_aoi.geojson"
 GCS_DEST="gs://chris-seagrass/features/olmo_earth"
