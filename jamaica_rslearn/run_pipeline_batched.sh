@@ -11,7 +11,7 @@ TIME_RANGE_START="2024-12-01T00:00:00+00:00"
 TIME_RANGE_END="2025-05-31T00:00:00+00:00"
 RESOLUTION=10
 AOI_FILE="./jamaica_seagrass_aoi.geojson"
-GCS_DEST="gs://chris-seagrass/olmo-earth-jamaica-embeddings"
+GCS_DEST="gs://chris-seagrass/features/olmo_earth"
 BATCH_SIZE=20
 PROGRESS_FILE="./batch_progress.txt"
 
@@ -126,8 +126,8 @@ for ((i=0; i<${#PENDING_WINDOWS[@]}; i+=BATCH_SIZE)); do
         tif_file=$(find "$window_dir/layers/embeddings" -name 'geotiff.tif' 2>/dev/null | head -1)
         
         if [ -n "$tif_file" ] && [ -f "$tif_file" ]; then
-            dest_path="$GCS_DEST/$w/geotiff.tif"
-            echo "  Uploading $w..."
+            dest_path="$GCS_DEST/${w}.tif"
+            echo "  Uploading $w.tif..."
             if gsutil -q cp "$tif_file" "$dest_path"; then
                 echo "$w" >> "$PROGRESS_FILE"
                 BATCH_UPLOADED=$((BATCH_UPLOADED + 1))
@@ -168,6 +168,6 @@ echo "========================================="
 echo "Total windows processed: $(wc -l < $PROGRESS_FILE)"
 echo "Embeddings at: $GCS_DEST"
 echo ""
-echo "To list: gsutil ls $GCS_DEST/"
-echo "To download: gsutil -m cp -r $GCS_DEST ./"
+echo "To list: gsutil ls $GCS_DEST/*.tif"
+echo "To download: gsutil -m cp $GCS_DEST/*.tif ./"
 

@@ -12,7 +12,7 @@ TIME_RANGE_START="2024-12-01T00:00:00+00:00"
 TIME_RANGE_END="2025-05-31T00:00:00+00:00"
 RESOLUTION=10
 AOI_FILE="./jamaica_seagrass_aoi.geojson"
-GCS_DEST="gs://chris-seagrass/olmo-earth-jamaica-embeddings"
+GCS_DEST="gs://chris-seagrass/features/olmo_earth"
 
 echo "========================================="
 echo "Jamaica Full Coastline - OlmoEarth Pipeline"
@@ -144,9 +144,9 @@ for window_dir in $DATASET_PATH/windows/default/*/; do
             if [ -d "$hash_dir" ]; then
                 tif_file="$hash_dir/geotiff.tif"
                 if [ -f "$tif_file" ]; then
-                    dest_path="$GCS_DEST/$window_name/geotiff.tif"
+                    dest_path="$GCS_DEST/${window_name}.tif"
                     
-                    echo "  Uploading $window_name..."
+                    echo "  Uploading ${window_name}.tif..."
                     if gsutil -q cp "$tif_file" "$dest_path"; then
                         UPLOAD_COUNT=$((UPLOAD_COUNT + 1))
                         rm -rf "$emb_dir"
@@ -177,10 +177,10 @@ echo "Embeddings saved to:"
 echo "  $GCS_DEST"
 echo ""
 echo "To list embeddings:"
-echo "  gsutil ls $GCS_DEST/"
+echo "  gsutil ls $GCS_DEST/*.tif"
 echo ""
 echo "To download all embeddings:"
-echo "  gsutil -m cp -r $GCS_DEST ./"
+echo "  gsutil -m cp $GCS_DEST/*.tif ./"
 echo ""
 echo "Total windows processed: $NUM_WINDOWS"
 echo "Embeddings uploaded: $UPLOAD_COUNT"
