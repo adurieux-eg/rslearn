@@ -86,20 +86,37 @@ def main():
             kept += 1
             continue
         
-        bounds_info = meta.get("bounds", {})
-        projection = bounds_info.get("projection", "")
-        coords = bounds_info.get("bounds", [])
+        # bounds is a list [x1, y1, x2, y2], projection is a dict
+        coords = meta.get("bounds", [])
+        projection_info = meta.get("projection", {})
         
         if len(coords) < 4:
             print(f"  Invalid bounds for {window_dir.name}, keeping")
             kept += 1
             continue
         
-        window_minx, window_miny, window_maxx, window_maxy = coords[0], coords[1], coords[2], coords[3]
+        # Get CRS and resolution from projection dict
+        if isinstance(projection_info, dict):
+            projection = projection_info.get("crs", "")
+            x_res = abs(projection_info.get("x_resolution", 10))
+            y_res = abs(projection_info.get("y_resolution", 10))
+        else:
+            projection = str(projection_info)
+            x_res = y_res = 10
+        
+        # Convert pixel bounds to projection units
+        window_minx = coords[0] * x_res
+        window_miny = coords[1] * y_res
+        window_maxx = coords[2] * x_res
+        window_maxy = coords[3] * y_res
+        
+        # Ensure min < max (y_resolution can be negative)
+        if window_miny > window_maxy:
+            window_miny, window_maxy = window_maxy, window_miny
         
         if HAS_SHAPELY:
-            if "EPSG:4326" not in projection:
-                epsg = projection.split(":")[-1] if "EPSG:" in projection else None
+            if "EPSG:4326" not in str(projection):
+                epsg = str(projection).split(":")[-1] if "EPSG:" in str(projection) else None
                 if epsg:
                     try:
                         transformer = Transformer.from_crs(f"EPSG:{epsg}", "EPSG:4326", always_xy=True)
