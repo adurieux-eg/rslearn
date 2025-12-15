@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-export DATASET_PATH=./jamaica_full_dataset
+MAIN_DATASET_PATH=./jamaica_full_dataset
 TIME_RANGE_START="2024-12-01T00:00:00+00:00"
 TIME_RANGE_END="2025-05-31T00:00:00+00:00"
 RESOLUTION=10
@@ -26,13 +26,13 @@ echo ""
 touch "$PROGRESS_FILE"
 
 # Step 1: Create dataset and windows (only if not already done)
-if [ ! -d "$DATASET_PATH/windows/default" ]; then
+if [ ! -d "$MAIN_DATASET_PATH/windows/default" ]; then
     echo "Step 1: Creating dataset structure..."
-    mkdir -p $DATASET_PATH
-    cp dataset_config.json $DATASET_PATH/config.json
+    mkdir -p $MAIN_DATASET_PATH
+    cp dataset_config.json $MAIN_DATASET_PATH/config.json
     
     rslearn dataset add_windows \
-      --root $DATASET_PATH \
+      --root $MAIN_DATASET_PATH \
       --group default \
       --name default \
       --utm \
@@ -48,7 +48,7 @@ else
 fi
 
 # Get list of all windows
-ALL_WINDOWS=($(ls -d $DATASET_PATH/windows/default/*/ 2>/dev/null | xargs -n1 basename))
+ALL_WINDOWS=($(ls -d $MAIN_DATASET_PATH/windows/default/*/ 2>/dev/null | xargs -n1 basename))
 TOTAL_WINDOWS=${#ALL_WINDOWS[@]}
 echo "Total windows: $TOTAL_WINDOWS"
 echo ""
@@ -89,10 +89,10 @@ for ((i=0; i<${#PENDING_WINDOWS[@]}; i+=BATCH_SIZE)); do
     BATCH_DATASET="./batch_temp_dataset"
     rm -rf "$BATCH_DATASET"
     mkdir -p "$BATCH_DATASET/windows/default"
-    cp "$DATASET_PATH/config.json" "$BATCH_DATASET/config.json"
+    cp "$MAIN_DATASET_PATH/config.json" "$BATCH_DATASET/config.json"
     
     for w in "${BATCH[@]}"; do
-        ln -s "$(realpath $DATASET_PATH/windows/default/$w)" "$BATCH_DATASET/windows/default/$w"
+        ln -s "$(realpath $MAIN_DATASET_PATH/windows/default/$w)" "$BATCH_DATASET/windows/default/$w"
     done
     
     echo "Step 2: Preparing batch (querying imagery)..."
@@ -145,8 +145,8 @@ for ((i=0; i<${#PENDING_WINDOWS[@]}; i+=BATCH_SIZE)); do
     # Remove symlinks and actual data from source
     for w in "${BATCH[@]}"; do
         # Remove layers from the REAL dataset path (not symlink)
-        rm -rf "$DATASET_PATH/windows/default/$w/layers/sentinel2_l2a"*
-        rm -rf "$DATASET_PATH/windows/default/$w/layers/embeddings"
+        rm -rf "$MAIN_DATASET_PATH/windows/default/$w/layers/sentinel2_l2a"*
+        rm -rf "$MAIN_DATASET_PATH/windows/default/$w/layers/embeddings"
     done
     rm -rf "$BATCH_DATASET"
     
