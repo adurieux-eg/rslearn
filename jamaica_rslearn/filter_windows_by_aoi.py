@@ -96,21 +96,25 @@ def main():
             continue
         
         # Get CRS and resolution from projection dict
+        # Note: y_resolution is often negative (north-up), so use actual values
         if isinstance(projection_info, dict):
             projection = projection_info.get("crs", "")
-            x_res = abs(projection_info.get("x_resolution", 10))
-            y_res = abs(projection_info.get("y_resolution", 10))
+            x_res = projection_info.get("x_resolution", 10)
+            y_res = projection_info.get("y_resolution", -10)
         else:
             projection = str(projection_info)
-            x_res = y_res = 10
+            x_res = 10
+            y_res = -10
         
-        # Convert pixel bounds to projection units
+        # Convert pixel bounds to projection units (pixel * resolution)
         window_minx = coords[0] * x_res
         window_miny = coords[1] * y_res
         window_maxx = coords[2] * x_res
         window_maxy = coords[3] * y_res
         
-        # Ensure min < max (y_resolution can be negative)
+        # Ensure min < max for box creation
+        if window_minx > window_maxx:
+            window_minx, window_maxx = window_maxx, window_minx
         if window_miny > window_maxy:
             window_miny, window_maxy = window_maxy, window_miny
         
