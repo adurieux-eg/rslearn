@@ -43,6 +43,11 @@ if [ ! -d "$MAIN_DATASET_PATH/windows/default" ]; then
       --end $TIME_RANGE_END \
       --grid_size 1024
     echo "✅ Windows created"
+    
+    echo ""
+    echo "Step 1b: Filtering windows to AOI overlap..."
+    python filter_windows_by_aoi.py "$MAIN_DATASET_PATH" "$AOI_FILE" 0.1
+    echo "✅ Windows filtered"
 else
     echo "Step 1: Dataset already exists, skipping creation"
 fi
