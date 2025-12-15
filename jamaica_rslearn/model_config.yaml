@@ -4,7 +4,7 @@ model:
     model:
       class_path: rslearn.models.singletask.SingleTaskModel
       init_args:
-          encoder:
+        encoder:
           - class_path: rslearn.models.olmoearth_pretrain.model.OlmoEarth
             init_args:
               model_id: OLMOEARTH_V1_BASE
