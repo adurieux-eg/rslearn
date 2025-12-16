@@ -10,6 +10,10 @@ model:
               model_id: OLMOEARTH_V1_BASE
               patch_size: 4
         decoder:
+          - class_path: rslearn.models.upsample.Upsample
+            init_args:
+              scale_factor: 4
+              mode: bilinear
           - class_path: rslearn.train.tasks.embedding.EmbeddingHead
     optimizer:
       class_path: rslearn.train.optimizer.AdamW
@@ -49,5 +53,5 @@ trainer:
         merger:
           class_path: rslearn.train.prediction_writer.RasterMerger
           init_args:
-            padding: 5
-            downsample_factor: 4
+            padding: 20
+            downsample_factor: 1
