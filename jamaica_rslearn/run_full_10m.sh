@@ -5,29 +5,33 @@
 set -e
 
 # Configuration
-DATASET_PATH=./jamaica_full_10m
+MAIN_DATASET_PATH=./jamaica_full_10m
 TIME_RANGE_START="2025-01-01T00:00:00+00:00"
 TIME_RANGE_END="2025-03-31T00:00:00+00:00"
 RESOLUTION=10
 AOI_FILE="./jamaica_seagrass_aoi.geojson"
 GCS_DEST="gs://chris-seagrass/features/olmo_earth_10m"
 BATCH_SIZE=10  # Windows per batch (upload after each batch)
+RESUME_FROM_BATCH=${1:-1}  # Resume from batch N (default: 1, start fresh)
 
 echo "========================================="
 echo "10m Resolution FULL RUN"
 echo "========================================="
 echo "Output: $GCS_DEST"
 echo "Batch size: $BATCH_SIZE windows"
+if [ "$RESUME_FROM_BATCH" -gt 1 ]; then
+    echo "RESUMING from batch $RESUME_FROM_BATCH"
+fi
 echo ""
 
 # Step 1: Create dataset and windows
 echo "Step 1: Creating dataset and windows..."
-rm -rf $DATASET_PATH
-mkdir -p $DATASET_PATH
-cp dataset_config.json $DATASET_PATH/config.json
+rm -rf $MAIN_DATASET_PATH
+mkdir -p $MAIN_DATASET_PATH
+cp dataset_config.json $MAIN_DATASET_PATH/config.json
 
 rslearn dataset add_windows \
-  --root $DATASET_PATH \
+  --root $MAIN_DATASET_PATH \
   --group default \
   --name default \
   --utm \
@@ -38,19 +42,19 @@ rslearn dataset add_windows \
   --end $TIME_RANGE_END \
   --grid_size 512
 
-INITIAL_COUNT=$(ls -d $DATASET_PATH/windows/default/*/ 2>/dev/null | wc -l)
+INITIAL_COUNT=$(ls -d $MAIN_DATASET_PATH/windows/default/*/ 2>/dev/null | wc -l)
 echo "✅ Windows created: $INITIAL_COUNT"
 
 # Step 2: Filter windows to those overlapping with AOI
 echo ""
 echo "Step 2: Filtering windows to AOI overlap..."
-python3 filter_windows_by_aoi.py "$DATASET_PATH" "$AOI_FILE" 5.0
+python3 filter_windows_by_aoi.py "$MAIN_DATASET_PATH" "$AOI_FILE" 5.0
 
-FILTERED_COUNT=$(ls -d $DATASET_PATH/windows/default/*/ 2>/dev/null | wc -l)
+FILTERED_COUNT=$(ls -d $MAIN_DATASET_PATH/windows/default/*/ 2>/dev/null | wc -l)
 echo "✅ Windows after AOI filter: $FILTERED_COUNT"
 
 # Get all windows to process
-ALL_WINDOWS=($(ls -d $DATASET_PATH/windows/default/*/ | xargs -n1 basename | sort))
+ALL_WINDOWS=($(ls -d $MAIN_DATASET_PATH/windows/default/*/ | xargs -n1 basename | sort))
 TOTAL_WINDOWS=${#ALL_WINDOWS[@]}
 TOTAL_BATCHES=$(( (TOTAL_WINDOWS + BATCH_SIZE - 1) / BATCH_SIZE ))
 
@@ -78,6 +82,13 @@ START_TIME=$(date +%s)
 for ((i=0; i<TOTAL_WINDOWS; i+=BATCH_SIZE)); do
     BATCH_NUM=$((BATCH_NUM + 1))
     
+    # Skip batches before resume point
+    if [ "$BATCH_NUM" -lt "$RESUME_FROM_BATCH" ]; then
+        WINDOWS_PROCESSED=$((WINDOWS_PROCESSED + BATCH_SIZE))
+        echo "Skipping batch $BATCH_NUM (resuming from $RESUME_FROM_BATCH)"
+        continue
+    fi
+    
     # Get windows for this batch
     BATCH_WINDOWS=("${ALL_WINDOWS[@]:i:BATCH_SIZE}")
     BATCH_COUNT=${#BATCH_WINDOWS[@]}
@@ -92,11 +103,11 @@ for ((i=0; i<TOTAL_WINDOWS; i+=BATCH_SIZE)); do
     BATCH_PATH="./batch_temp"
     rm -rf $BATCH_PATH
     mkdir -p $BATCH_PATH/windows/default
-    cp $DATASET_PATH/config.json $BATCH_PATH/config.json
+    cp $MAIN_DATASET_PATH/config.json $BATCH_PATH/config.json
     
     # Copy batch windows to temp dataset
     for w in "${BATCH_WINDOWS[@]}"; do
-        cp -r "$DATASET_PATH/windows/default/$w" "$BATCH_PATH/windows/default/"
+        cp -r "$MAIN_DATASET_PATH/windows/default/$w" "$BATCH_PATH/windows/default/"
     done
     
     # Step 3: Prepare batch
@@ -163,7 +174,7 @@ for ((i=0; i<TOTAL_WINDOWS; i+=BATCH_SIZE)); do
 done
 
 # Final cleanup
-rm -rf $DATASET_PATH
+rm -rf $MAIN_DATASET_PATH
 
 echo ""
 echo "========================================="
