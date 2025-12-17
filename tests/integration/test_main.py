@@ -63,8 +63,10 @@ class TestIngestion:
                 "local_files": {
                     "type": "vector",
                     "data_source": {
-                        "name": "rslearn.data_sources.local_files.LocalFiles",
-                        "src_dir": str(src_fname.parent),
+                        "class_path": "rslearn.data_sources.local_files.LocalFiles",
+                        "init_args": {
+                            "src_dir": str(src_fname.parent),
+                        },
                     },
                 },
                 "sentinel2": {
@@ -76,25 +78,23 @@ class TestIngestion:
                         }
                     ],
                     "data_source": {
-                        "name": "rslearn.data_sources.gcp_public_data.Sentinel2",
-                        "modality": "L1C",
-                        "index_cache_dir": "cache",
-                        "use_rtree_index": False,
+                        "class_path": "rslearn.data_sources.gcp_public_data.Sentinel2",
+                        "init_args": {
+                            "index_cache_dir": "cache",
+                            "use_rtree_index": False,
+                        },
                     },
                 },
-            },
-            "tile_store": {
-                "name": "file",
-                "root_dir": "tiles",
             },
         }
         with (ds_path / "config.json").open("w") as f:
             json.dump(ds_config, f)
+        dataset = Dataset(ds_path)
 
         # Add window intersecting the vector data file.
         logger.info("make window")
         window = Window(
-            path=Window.get_window_root(ds_path, "default", "default"),
+            storage=dataset.storage,
             group="default",
             name="default",
             projection=WGS84_PROJECTION,
@@ -124,7 +124,7 @@ class TestIngestion:
         }
         window.save_layer_datas(layer_datas)
 
-        return Dataset(ds_path)
+        return dataset
 
     @pytest.fixture
     def ingested_fname(self, prepared_dataset: Dataset) -> UPath:
@@ -254,8 +254,10 @@ class TestMaterialization:
                 "local_files": {
                     "type": "vector",
                     "data_source": {
-                        "name": "rslearn.data_sources.local_files.LocalFiles",
-                        "src_dir": str(src_fname.parent),
+                        "class_path": "rslearn.data_sources.local_files.LocalFiles",
+                        "init_args": {
+                            "src_dir": str(src_fname.parent),
+                        },
                     },
                 },
                 "sentinel2": {
@@ -267,26 +269,24 @@ class TestMaterialization:
                         }
                     ],
                     "data_source": {
-                        "name": "rslearn.data_sources.gcp_public_data.Sentinel2",
-                        "modality": "L1C",
-                        "index_cache_dir": "cache",
-                        "use_rtree_index": False,
+                        "class_path": "rslearn.data_sources.gcp_public_data.Sentinel2",
+                        "init_args": {
+                            "index_cache_dir": "cache",
+                            "use_rtree_index": False,
+                        },
                     },
                 },
-            },
-            "tile_store": {
-                "name": "file",
-                "root_dir": "tiles",
             },
         }
         with (ds_path / "config.json").open("w") as f:
             json.dump(ds_config, f)
+        dataset = Dataset(ds_path)
 
         # Add window intersecting the vector data file.
         logger.info("make window")
         # First window
         window1 = Window(
-            path=Window.get_window_root(ds_path, "default", "default"),
+            storage=dataset.storage,
             group="default",
             name="default",
             projection=WGS84_PROJECTION,
@@ -300,7 +300,7 @@ class TestMaterialization:
 
         # Second window
         window2 = Window(
-            path=Window.get_window_root(ds_path, "default", "window2"),
+            storage=dataset.storage,
             group="default",
             name="window2",
             projection=WGS84_PROJECTION,
@@ -359,7 +359,7 @@ class TestMaterialization:
             }
         )
 
-        return Dataset(ds_path)
+        return dataset
 
     @pytest.fixture
     def ingested_dataset(self, tmp_path: pathlib.Path, monkeypatch: Any) -> Dataset:

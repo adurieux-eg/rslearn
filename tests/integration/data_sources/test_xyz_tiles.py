@@ -6,13 +6,14 @@ from upath import UPath
 from rslearn.config import (
     BandSetConfig,
     DType,
+    LayerConfig,
     LayerType,
     QueryConfig,
-    RasterLayerConfig,
     SpaceMode,
 )
 from rslearn.data_sources.xyz_tiles import XyzTiles
 from rslearn.dataset import Window
+from rslearn.dataset.storage.file import FileWindowStorage
 from rslearn.utils import STGeometry
 
 
@@ -23,9 +24,9 @@ class TestXyzTiles:
 
     def run_simple_test(self, dst_dir: UPath, seattle2020: STGeometry) -> None:
         """Apply test where we ingest an item corresponding to seattle2020."""
-        layer_config = RasterLayerConfig(
-            LayerType.RASTER,
-            [BandSetConfig(config_dict={}, dtype=DType.UINT8, bands=self.TEST_BANDS)],
+        layer_config = LayerConfig(
+            type=LayerType.RASTER,
+            band_sets=[BandSetConfig(dtype=DType.UINT8, bands=self.TEST_BANDS)],
         )
         query_config = QueryConfig(space_mode=SpaceMode.INTERSECTS)
         assert seattle2020.time_range is not None
@@ -37,7 +38,7 @@ class TestXyzTiles:
         item_groups = data_source.get_items([seattle2020], query_config)[0]
         print(item_groups)
         window = Window(
-            path=dst_dir,
+            storage=FileWindowStorage(dst_dir),
             group="default",
             name="default",
             projection=seattle2020.projection,
