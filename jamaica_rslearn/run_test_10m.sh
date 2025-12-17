@@ -35,17 +35,26 @@ rslearn dataset add_windows \
   --fname $AOI_FILE \
   --start $TIME_RANGE_START \
   --end $TIME_RANGE_END \
-  --grid_size 1024
+  --grid_size 512
 
-echo "✅ Windows created"
+INITIAL_COUNT=$(ls -d $DATASET_PATH/windows/default/*/ 2>/dev/null | wc -l)
+echo "✅ Windows created: $INITIAL_COUNT"
 
-# Step 2: Keep only first N windows
+# Step 2: Filter windows to those overlapping with AOI
 echo ""
-echo "Step 2: Limiting to $MAX_WINDOWS windows..."
+echo "Step 2: Filtering windows to AOI overlap..."
+python3 filter_windows_by_aoi.py "$DATASET_PATH" "$AOI_FILE" 5.0
+
+FILTERED_COUNT=$(ls -d $DATASET_PATH/windows/default/*/ 2>/dev/null | wc -l)
+echo "✅ Windows after AOI filter: $FILTERED_COUNT"
+
+# Step 3: Keep only first N windows (from filtered set)
+echo ""
+echo "Step 3: Limiting to $MAX_WINDOWS windows..."
 ALL_WINDOWS=($(ls -d $DATASET_PATH/windows/default/*/ 2>/dev/null | head -$MAX_WINDOWS | xargs -n1 basename))
 echo "Selected windows: ${ALL_WINDOWS[@]}"
 
-# Remove extra windows
+# Remove extra windows beyond MAX_WINDOWS
 for w in $(ls $DATASET_PATH/windows/default/); do
     if [[ ! " ${ALL_WINDOWS[@]} " =~ " $w " ]]; then
         rm -rf "$DATASET_PATH/windows/default/$w"
@@ -55,9 +64,9 @@ done
 WINDOW_COUNT=$(ls -d $DATASET_PATH/windows/default/*/ | wc -l)
 echo "✅ Kept $WINDOW_COUNT windows"
 
-# Step 3: Prepare (query imagery metadata)
+# Step 4: Prepare (query imagery metadata)
 echo ""
-echo "Step 3: Querying imagery..."
+echo "Step 4: Querying imagery..."
 rslearn dataset prepare \
   --root "$DATASET_PATH" \
   --workers 4 \
@@ -66,9 +75,9 @@ rslearn dataset prepare \
 
 echo "✅ Imagery queried"
 
-# Step 4: Materialize (download imagery)
+# Step 5: Materialize (download imagery)
 echo ""
-echo "Step 4: Downloading imagery..."
+echo "Step 5: Downloading imagery..."
 rslearn dataset materialize \
   --root "$DATASET_PATH" \
   --workers 4 \
@@ -78,17 +87,17 @@ rslearn dataset materialize \
 
 echo "✅ Imagery downloaded"
 
-# Step 5: Compute embeddings
+# Step 6: Compute embeddings
 echo ""
-echo "Step 5: Computing 10m embeddings..."
+echo "Step 6: Computing 10m embeddings..."
 export DATASET_PATH="$DATASET_PATH"
 rslearn model predict --config model_config.yaml
 
 echo "✅ Embeddings computed"
 
-# Step 6: Check output sizes
+# Step 7: Check output sizes
 echo ""
-echo "Step 6: Checking output file sizes..."
+echo "Step 7: Checking output file sizes..."
 for w in "${ALL_WINDOWS[@]}"; do
     tif=$(find "$DATASET_PATH/windows/default/$w/layers/embeddings" -name 'geotiff.tif' 2>/dev/null | head -1)
     if [ -n "$tif" ]; then
@@ -98,16 +107,23 @@ for w in "${ALL_WINDOWS[@]}"; do
     fi
 done
 
-# Step 7: Upload to GCS
+# Step 8: Upload to GCS (without parallel composite to avoid download issues)
 echo ""
-echo "Step 7: Uploading to GCS..."
+echo "Step 8: Uploading to GCS..."
+gcloud config set storage/parallel_composite_upload_enabled False 2>/dev/null
 for w in "${ALL_WINDOWS[@]}"; do
     tif=$(find "$DATASET_PATH/windows/default/$w/layers/embeddings" -name 'geotiff.tif' 2>/dev/null | head -1)
     if [ -n "$tif" ]; then
         echo "  Uploading ${w}.tif..."
-        gsutil -q cp "$tif" "$GCS_DEST/${w}.tif"
+        gcloud storage cp "$tif" "$GCS_DEST/${w}.tif" --quiet
     fi
 done
+
+# Also upload config files for reproducibility
+echo "  Uploading config files..."
+gcloud storage cp model_config.yaml "$GCS_DEST/model_config.yaml" --quiet
+gcloud storage cp dataset_config.json "$GCS_DEST/dataset_config.json" --quiet
+gcloud storage cp run_test_10m.sh "$GCS_DEST/run_test_10m.sh" --quiet
 
 echo ""
 echo "========================================="

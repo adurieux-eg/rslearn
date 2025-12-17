@@ -33,7 +33,7 @@ data:
     task:
       class_path: rslearn.train.tasks.embedding.EmbeddingTask
     batch_size: 1
-    num_workers: 8
+    num_workers: 2
     predict_config:
       transforms:
         - class_path: rslearn.models.olmoearth_pretrain.norm.OlmoEarthNormalize
