@@ -13,7 +13,7 @@ model:
           - class_path: rslearn.models.upsample.Upsample
             init_args:
               scale_factor: 4
-              mode: bilinear
+              mode: "bilinear"
           - class_path: rslearn.train.tasks.embedding.EmbeddingHead
     optimizer:
       class_path: rslearn.train.optimizer.AdamW
